@@ -145,7 +145,7 @@ public abstract class MongoDB<Entidade> implements IMongoDao<Entidade> {
         List<Entidade> retorno = new ArrayList<>();
 
         int ordenacao = 1; // ascendente
-        String colunaOrdenacao = "_id"; //ordena pela coluna
+        String colunaOrdenacao = "id"; //ordena pela coluna
 
         if (sortField != null && !sortField.isEmpty()) { //caso tenha parametros troca as informações
             colunaOrdenacao = sortField;
@@ -154,20 +154,55 @@ public abstract class MongoDB<Entidade> implements IMongoDao<Entidade> {
             }
         }
 
-        //se passou a ultima entidade adiciona o id dela para paginar
+        boolean ordenacaoPorID = colunaOrdenacao.equals("id");
+
+        BasicDBList convertFiltrosAnd = convertFiltrosAnd(filtrosOperadorAND);
+
+        BasicDBObject filtrosAnd = new BasicDBObject();
+
+        //se passou a ultima entidade e não for a primeira pagina executa o metodo
+        // ele define a partir de qual a campo e posição que deverá começar a busca
         if (ultimaEntidade != null && pagina > 0) {
-            ObjectId id = getIdFromEntidade(ultimaEntidade);
-            if (id != null) {
-                filtrosOperadorAND.put("proximosID", id);
+            Map objectToMap = objectToMap(ultimaEntidade);
+
+            Object valorParaOrdenacao = null;
+
+            if (ordenacaoPorID) {
+                valorParaOrdenacao = mapToObject((LinkedHashMap) objectToMap.get(colunaOrdenacao), ObjectId.class);
+                colunaOrdenacao = "_" + colunaOrdenacao; //se for id tem que colocar _ para filtrar corretamente
+                //valorParaOrdenacao = getIdFromEntidade(ultimaEntidade);
+            } else {
+                valorParaOrdenacao = objectToMap.get(colunaOrdenacao);
             }
+
+            System.out.println("Coluna: " + colunaOrdenacao);
+            System.out.println("Valor: " + valorParaOrdenacao);
+            System.out.println("Ordenação: " + ascendingOrder);
+
+            BasicDBObject tipo;
+            if (ascendingOrder) {
+                //dependendo da ordenação precisa definir 
+                //menor ou maior
+                tipo = new BasicDBObject("$gt", valorParaOrdenacao);
+            } else {
+                tipo = new BasicDBObject("$lt", valorParaOrdenacao);
+            }
+
+            BasicDBObject coluna = new BasicDBObject(colunaOrdenacao, tipo);
+            convertFiltrosAnd.add(coluna);
+//            if (id != null) {
+//                filtrosAnd.put(sortField, objectToMap.get(sortField));
+//            }
         }
 
-        BasicDBObject convertFiltrosAnd = convertFiltrosAnd(filtrosOperadorAND);
+        if (!convertFiltrosAnd.isEmpty()) { // só adiciona se existir filtros
+            filtrosAnd.put("$and", convertFiltrosAnd);
+        }
 
         BasicDBObject orderBy = new BasicDBObject();
         orderBy.put(colunaOrdenacao, ordenacao);
 
-        FindIterable<Document> consulta = db.find(convertFiltrosAnd).limit(tamanho).sort(orderBy);
+        FindIterable<Document> consulta = db.find(filtrosAnd).limit(tamanho).sort(orderBy);
 
         MongoCursor<Document> cursor = consulta.iterator();
 
@@ -183,20 +218,24 @@ public abstract class MongoDB<Entidade> implements IMongoDao<Entidade> {
     @Override
     public int countLinhas(Map<String, Object> filtrosOperadorAND, Map<String, Object[]> filtrosOperadorOR) {
 
-        BasicDBObject convertFiltrosAnd = convertFiltrosAnd(filtrosOperadorAND);
+        BasicDBList convertFiltrosAnd = convertFiltrosAnd(filtrosOperadorAND);
+        BasicDBObject filtrosAnd = new BasicDBObject();
 
-        Long countDocuments = db.countDocuments(convertFiltrosAnd);
+        if (!convertFiltrosAnd.isEmpty()) { // só adiciona se existir filtros
+            filtrosAnd.put("$and", convertFiltrosAnd);
+        }
+
+        Long countDocuments = db.countDocuments(filtrosAnd);
 
         return countDocuments.intValue();
     }
 
-    private BasicDBObject convertFiltrosAnd(Map<String, Object> filtrosOperadorAND) {
-        BasicDBObject query = new BasicDBObject();
-        if (filtrosOperadorAND == null || filtrosOperadorAND.isEmpty()) {
-            return query;
-        }
-
+    private BasicDBList convertFiltrosAnd(Map<String, Object> filtrosOperadorAND) {
         BasicDBList andList = new BasicDBList();
+//        BasicDBObject query = new BasicDBObject();
+        if (filtrosOperadorAND == null || filtrosOperadorAND.isEmpty()) {
+            return andList;
+        }
 
         Iterator<Map.Entry<String, Object>> it = filtrosOperadorAND.entrySet().iterator();
         while (it.hasNext()) {
@@ -220,16 +259,23 @@ public abstract class MongoDB<Entidade> implements IMongoDao<Entidade> {
             andList.add(coluna);
         }
 
-        query.put("$and", andList);
-
-        return query;
+        return andList;
+//        query.put("$and", andList);
+//
+//        return query;
     }
 
     @Override
     public Entidade buscaUnica(Map<String, Object> filtrosOperadorAND, Map<String, Object[]> filtrosOperadorOR) {
-        BasicDBObject convertFiltrosAnd = convertFiltrosAnd(filtrosOperadorAND);
 
-        FindIterable<Document> consulta = db.find(convertFiltrosAnd).limit(1);
+        BasicDBList convertFiltrosAnd = convertFiltrosAnd(filtrosOperadorAND);
+        BasicDBObject filtrosAnd = new BasicDBObject();
+
+        if (!convertFiltrosAnd.isEmpty()) { // só adiciona se existir filtros
+            filtrosAnd.put("$and", convertFiltrosAnd);
+        }
+
+        FindIterable<Document> consulta = db.find(filtrosAnd).limit(1);
         MongoCursor<Document> cursor = consulta.iterator();
         if (cursor.hasNext()) {
             Document documento = cursor.next();
