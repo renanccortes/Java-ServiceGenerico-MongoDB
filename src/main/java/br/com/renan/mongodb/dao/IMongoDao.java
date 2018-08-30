@@ -37,7 +37,8 @@ public interface IMongoDao<Entidade> extends Serializable {
      * @param ascendingOrder - Tipo de ordenação (true: asc, false: desc)
      * @return
      */
-    public List<Entidade> buscaPaginada(int pagina, int tamanho, Entidade ultimaEntidade, Map<String, Object> filtrosOperadorAND, Map<String, Object[]> filtrosOperadorOR,
+    public List<Entidade> buscaPaginada(int pagina, int tamanho, Entidade ultimaEntidade, 
+            Map<String, Object> filtrosOperadorAND, Map<String, Object[]> filtrosOperadorOR,
             String sortField, boolean ascendingOrder);
 
     /**
@@ -78,7 +79,7 @@ public interface IMongoDao<Entidade> extends Serializable {
      *
      * @param filtrosOperadorAND - Filtros AND
      * @param filtrosOperadorOR - Filtros OR (Faltando implementação)
-     * @return 
+     * @return
      */
     public Entidade buscaUnica(Map<String, Object> filtrosOperadorAND, Map<String, Object[]> filtrosOperadorOR);
 

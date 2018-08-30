@@ -5,6 +5,11 @@
  */
 package br.com.renan.mongodb.dao;
 
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 import br.com.renan.mongodb.exceptions.MongoDBException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
@@ -203,13 +208,14 @@ public abstract class MongoDB<Entidade> implements IMongoDao<Entidade> {
                 if (pair.getValue() instanceof String) {
                     tipo = new BasicDBObject("$regex", Pattern.compile(".*" + pair.getValue() + ".*", Pattern.CASE_INSENSITIVE));
                 } else {
+                    System.out.println(pair.getKey() + " - " + pair.getValue());
                     tipo = new BasicDBObject("$eq", pair.getValue());
                 }
+                coluna = new BasicDBObject(pair.getKey(), tipo);
             } else {
-                tipo = new BasicDBObject("$gt", new ObjectId(pair.getValue().toString()));
+                tipo = new BasicDBObject("$gt", pair.getValue());
+                coluna = new BasicDBObject("_id", tipo);
             }
-
-            coluna = new BasicDBObject(pair.getKey(), tipo);
 
             andList.add(coluna);
         }
